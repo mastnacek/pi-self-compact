@@ -30,7 +30,7 @@
     "README.md",
     "package.json",
     "index.ts",
-    "config.ts",
-    "context-bar.ts"
+    "src",
+    "tsconfig.json"
   ]
 }
