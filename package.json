@@ -32,5 +32,8 @@
     "index.ts",
     "src",
     "tsconfig.json"
-  ]
+  ],
+  "scripts": {
+    "test": "npx tsx --test test/**/*.test.js"
+  }
 }

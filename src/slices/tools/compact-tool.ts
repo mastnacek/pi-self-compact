@@ -6,7 +6,6 @@
 import type { AgentToolResult, ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import type { SelfCompactState } from "../../shared/state.js";
-import { saveConfig } from "../../shared/config.js";
 
 function formatUsageSummary(ctx: ExtensionContext): string {
 	const usage = ctx.getContextUsage();
@@ -86,7 +85,4 @@ export function registerSelfCompactTool(pi: ExtensionAPI, state: SelfCompactStat
 			};
 		},
 	});
-
-	// confirm toggle shares config mutation with the command slice
-	(state as SelfCompactState & { __saveConfig?: () => void }).__saveConfig = () => saveConfig(state.config);
 }

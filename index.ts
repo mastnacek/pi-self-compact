@@ -15,6 +15,7 @@
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { loadConfig } from "./src/shared/config.js";
 import { createSelfCompactState } from "./src/shared/state.js";
 import { registerPipeline } from "./src/slices/pipeline/index.js";
 import { registerModelTools } from "./src/slices/tools/index.js";
@@ -22,6 +23,15 @@ import { registerSelfCompactCommand } from "./src/slices/commands/index.js";
 
 export default function selfCompactExtension(pi: ExtensionAPI): void {
 	const state = createSelfCompactState(pi);
+
+	// Session init: reload the cascading config
+	// (defaults <- ~/.pi/agent/ <- <cwd>/.pi/), which the constructor cannot do
+	// because no cwd exists at extension-load time.
+	state.track(
+		pi.on("session_start", async (_event, ctx) => {
+			state.config = loadConfig(ctx.cwd);
+		}),
+	);
 
 	registerPipeline(pi, state);
 	registerModelTools(pi, state);

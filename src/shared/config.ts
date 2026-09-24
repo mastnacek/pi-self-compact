@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 export interface ThresholdConfig {
 	/** Soft notice percent (e.g. 50% or 0.5) */
@@ -23,26 +23,47 @@ export const DEFAULT_CONFIG: ThresholdConfig = {
 };
 
 const CONFIG_DIR = join(homedir(), ".pi", "agent");
-const CONFIG_FILE = join(CONFIG_DIR, "pi-self-compact.json");
+export const GLOBAL_CONFIG_FILE = join(CONFIG_DIR, "pi-self-compact.json");
 
-export function loadConfig(): ThresholdConfig {
-	try {
-		if (existsSync(CONFIG_FILE)) {
-			const raw = readFileSync(CONFIG_FILE, "utf8");
-			return { ...DEFAULT_CONFIG, ...JSON.parse(raw) };
-		}
-	} catch {
-		// fallback to defaults on read error
-	}
-	return { ...DEFAULT_CONFIG };
+/** Project override: <cwd>/.pi/pi-self-compact.json (wins over the global file). */
+export function projectConfigPath(cwd: string): string {
+	return join(cwd, ".pi", "pi-self-compact.json");
 }
 
-export function saveConfig(cfg: ThresholdConfig): void {
+function readLayer(path: string): Partial<ThresholdConfig> {
 	try {
-		if (!existsSync(CONFIG_DIR)) {
-			mkdirSync(CONFIG_DIR, { recursive: true });
+		if (existsSync(path)) {
+			return JSON.parse(readFileSync(path, "utf8")) as Partial<ThresholdConfig>;
 		}
-		writeFileSync(CONFIG_FILE, JSON.stringify(cfg, null, 2), "utf8");
+	} catch {
+		// Corrupt layer — fall through to the next one.
+	}
+	return {};
+}
+
+/**
+ * Effective config with the mandatory cascade:
+ * defaults <- ~/.pi/agent/pi-self-compact.json <- <cwd>/.pi/pi-self-compact.json.
+ * Without a cwd only the global layer applies.
+ */
+export function loadConfig(cwd?: string): ThresholdConfig {
+	const merged = {
+		...DEFAULT_CONFIG,
+		...readLayer(GLOBAL_CONFIG_FILE),
+		...(cwd ? readLayer(projectConfigPath(cwd)) : {}),
+	};
+	return merged;
+}
+
+/**
+ * Persist the config: `--global` (isGlobal) writes ~/.pi/agent/, otherwise the
+ * project file under <cwd>/.pi/. Without a cwd the global file is the target.
+ */
+export function saveConfig(cfg: ThresholdConfig, isGlobal = false, cwd?: string): void {
+	const target = isGlobal || !cwd ? GLOBAL_CONFIG_FILE : projectConfigPath(cwd);
+	try {
+		mkdirSync(dirname(target), { recursive: true });
+		writeFileSync(target, JSON.stringify(cfg, null, 2), "utf8");
 	} catch {
 		// silent error fallback
 	}
